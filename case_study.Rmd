@@ -1,0 +1,160 @@
+---
+title: "Case Study"
+output: html_document
+date: "2023-10-12"
+---
+
+```{r, include = FALSE, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(ggridges)
+library(leaflet)
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  fig.width = 6,
+  fig.asp = 0.6,
+  out.width = "90%"
+)
+
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
+
+
+```
+
+## Get the data
+
+```{r}
+library(p8105.datasets)
+
+data(nyc_airbnb)
+
+nyc_airbnb = 
+  nyc_airbnb |> 
+  rename(borough = neighbourhood_group) |> 
+  mutate(stars = review_scores_location / 2)
+```
+
+## Brainstorm questions
+
+- Where are AirBNBs expensive? 
+  - Borough, neighborhood?
+  - Do other factors (room type) affect price? What about rating?
+- How long are AirBNBs active? 
+  - Are AirBNBs illegal and do they get shut down?
+- Which units have the most availability?
+- How is review score impacted by location?
+- How many apartments are run by one host?
+  - Does that affect price? 
+  - Does that vary by neighborhood?
+- Where are AirBNBs?
+  - Neighborhood, Borough?
+  - Lat/long?
+  
+## Code! Going to answer: What is the distribution of number of AirBNBs operated by a single host? 
+
+
+```{r}
+nyc_airbnb |> 
+  group_by(host_id) |> 
+  count() |> 
+  arrange(desc(n)) |> 
+  ggplot(aes(x = n)) +
+  geom_histogram(binwidth = 1)
+  
+```
+
+
+## Questions from the rest of the class
+
+```{r}
+nyc_airbnb |> 
+  count(borough)
+```
+
+```{r}
+nyc_airbnb |> 
+  group_by(borough, room_type) |> 
+  summarize(mean_price = mean(price)) |> 
+  pivot_wider(
+    names_from = room_type,
+    values_from = mean_price
+  )
+```
+
+```{r}
+nyc_airbnb |> 
+  ggplot(aes(x = price)) +
+  geom_histogram() +
+  facet_grid(borough ~ room_type)
+```
+
+```{r}
+nyc_airbnb |> 
+  filter(price >= 9500)
+```
+
+```{r}
+nyc_airbnb |> 
+  filter(price < 1000, room_type == "Entire home/apt") |> 
+  ggplot(aes(x = price)) +
+  geom_histogram() +
+  facet_grid(. ~ borough)
+```
+
+```{r}
+nyc_airbnb |> 
+  filter(price < 1000, 
+         room_type == "Entire home/apt", 
+         borough == "Manhattan") |> 
+  group_by(neighbourhood) |> 
+  summarize(n_apt = n(),
+            mean_price = mean(price)) |> 
+  arrange(desc(mean_price))
+```
+
+```{r}
+nyc_airbnb |> 
+  filter(price < 1000, 
+         room_type == "Entire home/apt", 
+         borough == "Manhattan") |> 
+  mutate(neighbourhood = fct_reorder(neighbourhood, price)) |> 
+  ggplot(aes(x = price, y = neighbourhood)) +
+  geom_density_ridges()
+```
+
+## Try to make a map
+
+```{r}
+nyc_airbnb |> 
+  filter(price < 1000, 
+         room_type == "Entire home/apt", 
+         borough == "Manhattan") |> 
+  ggplot(aes(x = lat, y = long, color = price)) +
+  geom_point()
+```
+
+## Try leaflet!
+
+```{r}
+nyc_airbnb |> 
+    filter(price < 1000, 
+         room_type == "Entire home/apt", 
+         borough == "Manhattan") |> 
+  leaflet() |> 
+  addProviderTiles(providers$CartoDB.Positron) |> 
+  addCircleMarkers(~lat, ~long, radius = 0.5)
+```
+
+Change to an HTML document if you want to preserve the interactive map!! Otherwise it creates a static doc for github. 
+
+
